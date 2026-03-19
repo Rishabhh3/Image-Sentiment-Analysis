@@ -35,12 +35,17 @@ def get_image_paths_and_labels(data_path: str):
             d for d in os.listdir(data_path)
             if os.path.isdir(os.path.join(data_path, d))
         )
+        # sorted so that the label is always in same order
+        # class names = happy and sad
 
         if not class_names:
             raise ValueError(f"No class sub-directories found in: {data_path}")
 
         image_paths, labels = [], []
 
+        ''' This loop iterates through each class sub-directory, assigns a label index based on the sorted order of class names,
+          and collects valid image file paths along with their corresponding labels. It also logs warnings for any invalid 
+          or small images that are skipped. '''
         for label_idx, class_name in enumerate(class_names):
             class_dir = os.path.join(data_path, class_name)
             for fname in os.listdir(class_dir):
@@ -48,6 +53,7 @@ def get_image_paths_and_labels(data_path: str):
                 if os.path.isfile(file_path) and _is_valid_image(file_path):
                     image_paths.append(file_path)
                     labels.append(label_idx)
+                    # if valid image, add to list of paths and integer ID
                 else:
                     logger.warning("Skipping invalid or small image: %s", file_path)
 
@@ -80,16 +86,23 @@ def split_data(image_paths: list, labels: list, train_split: float = 0.8, seed: 
         if not 0 < train_split < 1:
             raise ValueError(f"train_split must be in (0, 1), got {train_split}")
 
-        combined = list(zip(image_paths, labels))
+        combined = list(zip(image_paths, labels)) # locks them together so they are shuffled in the same way and convert into list of tuples
+        # otherswise if we shuffle them separately, the paths and labels will no longer correspond to each other
         random.seed(seed)
-        random.shuffle(combined)
+        random.shuffle(combined) # without this, the data will always be in the same order (e.g. all happy followed by all sad) 
+                                # so the model might just learn to predict the majority class and not learn anything useful.
 
         split_idx = int(len(combined) * train_split)
         train_data = combined[:split_idx]
         val_data = combined[split_idx:]
 
         train_paths, train_labels = (list(x) for x in zip(*train_data)) if train_data else ([], [])
+        # the * does opposite of zip, it unzips the list of tuples back into separate lists for paths and labels
+
         val_paths, val_labels = (list(x) for x in zip(*val_data)) if val_data else ([], [])
+        ''' We are unzipping them for model training because the DataLoader expects separate lists of paths and labels. like X, y
+        after splitting the model wants separate list of paths and labels'''
+
 
         logger.info(
             "Data split — train: %d samples, val: %d samples",
