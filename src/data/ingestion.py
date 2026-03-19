@@ -48,7 +48,7 @@ def get_image_paths_and_labels(data_path: str):
                 if os.path.isfile(file_path) and _is_valid_image(file_path):
                     image_paths.append(file_path)
                     labels.append(label_idx)
-                else:
+                elif os.path.isfile(file_path):
                     logger.warning("Skipping invalid or small image: %s", file_path)
 
         logger.info(
