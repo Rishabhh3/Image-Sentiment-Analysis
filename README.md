@@ -1,8 +1,8 @@
 #  Image Sentiment Analysis
 
-A deep learning project that classifies images based on their **sentiment (e.g., Positive / Negative / Neutral)** using a Convolutional Neural Network (CNN).
+A deep learning project that classifies images based on their **sentiment (Happy / Sad)** using a Convolutional Neural Network (CNN) built with **PyTorch**.
 
-This project is inspired by a deep CNN image classification pipeline and adapted for **visual sentiment understanding**, a task that goes beyond object detection to infer emotional context from images.
+This project is inspired by a deep CNN image classification pipeline and adapted for **visual sentiment understanding** – a task that goes beyond object detection to infer emotional context from images.
 
 ---
 
@@ -18,34 +18,56 @@ Unlike traditional classification, this involves:
 
 This project builds an end-to-end pipeline:
 
-* Data preprocessing
-* Model training (CNN)
-* Evaluation
-* Prediction on unseen images
+* Data preprocessing & augmentation
+* Model training (Custom CNN or transfer-learning backbone)
+* Evaluation (Precision / Recall / F1 / Accuracy)
+* Prediction on unseen images (CLI + Streamlit web app)
 
 ---
 
 ## 🧠 Model Architecture
 
-The model is based on a **Convolutional Neural Network (CNN)**:
+Three model options are available:
 
-* Convolution layers → Feature extraction
-* ReLU activation → Non-linearity
-* Pooling layers → Dimensionality reduction
-* Fully connected layers → Classification
-* Output layer → Sentiment class probabilities
+| Backbone | Description |
+|----------|-------------|
+| `custom_cnn` | 3 × Conv→BN→ReLU→MaxPool blocks, then Dense(256)→Dropout→Linear |
+| `resnet18` | Pretrained ResNet-18 with custom classification head |
+| `efficientnet_b0` | Pretrained EfficientNet-B0 with custom classification head |
 
+---
 
 ## 📂 Project Structure
 
 ```
 Image-Sentiment-Analysis/
-│── data/                  # Dataset (images categorized by sentiment)
-│── models/                # Saved trained models
-│── src/
-|── image_sentiment_classfication.ipynb
-│── requirements.txt
-│── README.md
+├── app.py                   # Streamlit web app
+├── train.py                 # CLI entry point – training
+├── evaluate.py              # CLI entry point – evaluation
+├── predict.py               # CLI entry point – single image inference
+├── check.py                 # Sanity-check for the data loader
+├── requirements.txt
+├── README.md
+│
+├── src/
+│   ├── config.py            # Centralised configuration
+│   ├── utils.py             # Logging & custom exceptions
+│   ├── data/
+│   │   ├── loader.py        # PyTorch Dataset / DataLoader factory
+│   │   └── transforms.py    # Train (augmented) & val/test transforms
+│   ├── models/
+│   │   └── model.py         # build_model() factory + SentimentCNN
+│   ├── engine/
+│   │   ├── train.py         # Training loop with early stopping & TensorBoard
+│   │   └── evaluate.py      # Precision / Recall / F1 / Accuracy + confusion matrix
+│   └── inference/
+│       └── predict.py       # load_model() + predict() helpers
+│
+├── notebook/
+│   └── image_sentiment_classification.ipynb
+│
+├── Data/          # (not tracked) class sub-directories e.g. Data/happy, Data/sad
+└── models/        # (not tracked) saved .pth checkpoints
 ```
 
 ---
@@ -62,56 +84,111 @@ pip install -r requirements.txt
 
 ## 📊 Dataset
 
-* Images are labeled into sentiment categories:
+Organise images into class sub-directories under `Data/`:
 
-  * Positive 😊
-  * Negative 😞
+```
+Data/
+├── happy/
+│   ├── img1.jpg
+│   └── ...
+└── sad/
+    ├── img1.jpg
+    └── ...
+```
 
-Dataset preprocessing includes:
+The data loader automatically:
 
-* Resizing images
-* Normalization
-* Train-test split
-* Data augmentation (optional)
+* Resizes images and normalises pixel values
+* Applies random augmentation (flip, rotation, colour jitter) during training
+* Splits data into 70 % train / 20 % val / 10 % test (configurable in `src/config.py`)
+* Uses a fixed random seed for reproducible splits
 
 ---
 
 ## 🏋️ Training the Model
 
 ```bash
-python src/train.py
+# Default custom CNN
+python train.py
+
+# Transfer learning with ResNet-18
+python train.py --backbone resnet18 --pretrained --epochs 30
+
+# All options
+python train.py --help
 ```
 
 Training includes:
 
 * Loss: Cross-Entropy
-* Optimizer: Adam
-* Metrics: Accuracy
+* Optimizer: Adam with ReduceLROnPlateau scheduler
+* Metrics: Loss & Accuracy logged to TensorBoard
+* Early stopping (patience configurable)
+* Best checkpoint auto-saved to `models/best_model.pth`
+
+View TensorBoard logs:
+
+```bash
+tensorboard --logdir logs
+```
 
 ---
 
-## 🔍 Prediction
+## 📈 Evaluation
 
 ```bash
-python src/predict.py --image path_to_image
+python evaluate.py --checkpoint models/best_model.pth --split test
+```
+
+Outputs Precision, Recall, F1, Accuracy and a confusion matrix.
+
+---
+
+## 🔍 Prediction (CLI)
+
+```bash
+python predict.py --image path/to/image.jpg
 ```
 
 Output:
 
 ```
-Predicted Sentiment: Positive
-Confidence: 0.87
+Predicted Sentiment : Happy
+Confidence          : 0.9231
+
+Class Probabilities :
+          happy : 0.9231
+            sad : 0.0769
 ```
 
+---
+
+## 🌐 Web App (Streamlit)
+
+```bash
+streamlit run app.py
+```
+
+Upload any image via the browser UI to get an instant sentiment prediction with confidence scores.
+
+---
+
+## ✅ Data Loader Check
+
+```bash
+python check.py
+```
+
+Verifies the data pipeline loads correctly and prints batch shapes.
 
 ---
 
 ## 🚧 Future Improvements
 
-* Use **Transfer Learning (ResNet / EfficientNet)**
-* Add **Grad-CAM visualization** for interpretability
-* Deploy as a **web app (Streamlit / Flask)**
+* Add **Grad-CAM visualisation** for model interpretability
+* Extend to **multi-class sentiment** (Positive / Neutral / Negative)
 * Combine with **text sentiment (multimodal AI)**
+* Containerise with **Docker** for easy deployment
 
 ---
 

@@ -2,3 +2,8 @@ opencv-python
 matplotlib
 torch
 torchvision
+Pillow
+tensorboard
+streamlit
+tqdm
+scikit-learn
