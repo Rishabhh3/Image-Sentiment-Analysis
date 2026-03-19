@@ -1,8 +1,6 @@
 #  Image Sentiment Analysis
 
-A deep learning project that classifies images based on their **sentiment (e.g., Positive / Negative / Neutral)** using a Convolutional Neural Network (CNN).
-
-This project is inspired by a deep CNN image classification pipeline and adapted for **visual sentiment understanding**, a task that goes beyond object detection to infer emotional context from images.
+A deep learning project that classifies images based on their **sentiment (Positive / Negative)** using a Convolutional Neural Network (CNN) built entirely with **PyTorch**.
 
 ---
 
@@ -10,42 +8,61 @@ This project is inspired by a deep CNN image classification pipeline and adapted
 
 Image Sentiment Analysis is a computer vision task where the goal is to determine the **emotional tone conveyed by an image**.
 
-Unlike traditional classification, this involves:
+This project builds a clean, step-by-step end-to-end pipeline so that each component is easy to understand and modify independently:
 
-* Understanding **visual features**
-* Extracting **contextual cues**
-* Mapping them to **human emotions**
-
-This project builds an end-to-end pipeline:
-
-* Data preprocessing
-* Model training (CNN)
-* Evaluation
-* Prediction on unseen images
+| Step | File / Module | What it does |
+|------|--------------|--------------|
+| 1 | `src/data/loader.py` | Load & transform images into PyTorch `DataLoader` |
+| 2 | `src/model/cnn.py` | CNN architecture definition |
+| 3 | `src/engine/train.py` | Single-epoch training loop |
+| 4 | `src/engine/evaluate.py` | Loss, accuracy, precision & recall |
+| 5 | `src/inference/predict.py` | Single-image prediction |
+| 6 | `train.py` | **Run training** (entry point) |
+| 7 | `evaluate.py` | **Run evaluation** (entry point) |
+| 8 | `predict.py` | **Run prediction** (entry point) |
 
 ---
 
 ## 🧠 Model Architecture
 
-The model is based on a **Convolutional Neural Network (CNN)**:
-
-* Convolution layers → Feature extraction
-* ReLU activation → Non-linearity
-* Pooling layers → Dimensionality reduction
-* Fully connected layers → Classification
-* Output layer → Sentiment class probabilities
-
+```
+Input (3 × 224 × 224)
+  └─ Conv2d(3→16, 3×3) + ReLU + MaxPool(2×2)
+  └─ Conv2d(16→32, 3×3) + ReLU + MaxPool(2×2)
+  └─ Conv2d(32→16, 3×3) + ReLU + MaxPool(2×2)
+  └─ Flatten
+  └─ Linear(→256) + ReLU + Dropout(0.5)
+  └─ Linear(256→num_classes)
+```
 
 ## 📂 Project Structure
 
 ```
 Image-Sentiment-Analysis/
-│── data/                  # Dataset (images categorized by sentiment)
-│── models/                # Saved trained models
-│── src/
-|── image_sentiment_classfication.ipynb
-│── requirements.txt
-│── README.md
+├── Data/                        # Dataset (images organized by class folder)
+│   ├── happy/
+│   └── sad/
+├── models/                      # Saved model checkpoints
+├── logs/                        # Training logs
+├── notebook/
+│   └── image_sentiment_classification.ipynb  # Original TensorFlow reference
+├── src/
+│   ├── config.py                # Dataset / training configuration
+│   ├── utils.py                 # Logger and custom exceptions
+│   ├── data/
+│   │   └── loader.py            # PyTorch Dataset + DataLoader helpers
+│   ├── model/
+│   │   └── cnn.py               # SentimentCNN architecture
+│   ├── engine/
+│   │   ├── train.py             # train_one_epoch()
+│   │   └── evaluate.py          # evaluate()
+│   └── inference/
+│       └── predict.py           # predict() for a single image
+├── train.py                     # Training entry point
+├── evaluate.py                  # Evaluation entry point
+├── predict.py                   # Prediction entry point
+├── check.py                     # Quick data-loader smoke test
+└── requirements.txt
 ```
 
 ---
@@ -62,47 +79,64 @@ pip install -r requirements.txt
 
 ## 📊 Dataset
 
-* Images are labeled into sentiment categories:
+Place your images in a `Data/` folder, one sub-folder per class:
 
-  * Positive 😊
-  * Negative 😞
+```
+Data/
+├── happy/   ← class 0
+└── sad/     ← class 1
+```
 
 Dataset preprocessing includes:
 
-* Resizing images
-* Normalization
-* Train-test split
-* Data augmentation (optional)
+* Resizing to 224 × 224
+* Normalization (ImageNet mean/std)
+* Random horizontal flip (training only)
+* 80/20 train-validation split
 
 ---
 
 ## 🏋️ Training the Model
 
 ```bash
-python src/train.py
+python train.py
 ```
+
+Training configuration lives in `src/config.py`. The best model is saved to `models/best_model.pth`.
 
 Training includes:
 
 * Loss: Cross-Entropy
 * Optimizer: Adam
-* Metrics: Accuracy
+* Metrics: Loss, Accuracy, Precision, Recall
+
+---
+
+## 📊 Evaluating the Model
+
+```bash
+python evaluate.py
+# or with a custom checkpoint:
+python evaluate.py --checkpoint models/best_model.pth
+```
 
 ---
 
 ## 🔍 Prediction
 
 ```bash
-python src/predict.py --image path_to_image
+python predict.py --image path/to/image.jpg
 ```
 
 Output:
 
 ```
-Predicted Sentiment: Positive
-Confidence: 0.87
+Predicted Sentiment: happy
+Confidence        : 0.9231
+Class Probabilities:
+  happy     : 0.9231
+  sad       : 0.0769
 ```
-
 
 ---
 
@@ -121,3 +155,4 @@ Confidence: 0.87
 * Marketing & brand perception
 * Content recommendation
 * Human-computer interaction
+

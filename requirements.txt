@@ -1,4 +1,5 @@
-opencv-python
-matplotlib
 torch
 torchvision
+Pillow
+opencv-python
+matplotlib
