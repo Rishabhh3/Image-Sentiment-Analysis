@@ -121,3 +121,13 @@ Confidence: 0.87
 * Marketing & brand perception
 * Content recommendation
 * Human-computer interaction
+
+Run the model:
+# Train the model
+python main.py --mode train --num_epochs 50
+
+# Evaluate trained model
+python main.py --mode evaluate
+
+# Make predictions
+python main.py --mode predict --image_path Data/happy/image.jpg

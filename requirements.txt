@@ -3,3 +3,6 @@ matplotlib
 torch
 torchvision
 seaborn
+streamlit
+scikit-learn
+tqdm

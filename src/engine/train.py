@@ -33,9 +33,16 @@ class Trainer:
         # GradScaler helps prevent underflow when using mixed precision by dynamically scaling the loss value, which allows us to take advantage of the speed and memory benefits of mixed precision without sacrificing stability.
         
         self.optimizer = Adam(model.parameters(), lr=learning_rate) 
-        self.scheduler = ReduceLROnPlateau(
-            self.optimizer, mode="min", factor=0.5, patience=3, verbose=True
-        ) # if model stops imporving for 3 epochs, reduce learning rate by half to help model converge to a better minimum, and verbose=True will print a message every time the learning rate is reduced
+        # Some torch versions do not support the 'verbose' argument.
+        try:
+            self.scheduler = ReduceLROnPlateau(
+                self.optimizer, mode="min", factor=0.5, patience=3, verbose=True
+            )
+        except TypeError:
+            self.scheduler = ReduceLROnPlateau(
+                self.optimizer, mode="min", factor=0.5, patience=3
+            )
+        # if model stops improving for 3 epochs, reduce learning rate by half to help model converge to a better minimum
         self.criterion = nn.CrossEntropyLoss()
         # used in binary classification, and heavily penalizes the model when it is confidently wrong
         self.best_val_loss = float("inf")

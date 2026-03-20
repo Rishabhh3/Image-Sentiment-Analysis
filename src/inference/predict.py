@@ -5,7 +5,7 @@ from torchvision import transforms
 from pathlib import Path
 
 class SentimentPredictor:
-    def __init__(self, model, device=None):
+    def __init__(self, model, device=None, sentiment_labels=None):
         # Auto-select best device
         if device is None:
             if torch.cuda.is_available():
@@ -28,7 +28,8 @@ class SentimentPredictor:
                 std=[0.229, 0.224, 0.225]
             )
         ])
-        self.sentiment_labels = ['sad', 'happy']
+        # Keep label order aligned with training label indices.
+        self.sentiment_labels = sentiment_labels or ['happy', 'sad']
     
     def predict(self, image_path):
         """Predict sentiment for a single image"""
