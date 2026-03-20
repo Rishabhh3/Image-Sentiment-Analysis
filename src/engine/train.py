@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 class Trainer:
-    """Production-level training engine for sentiment analysis model."""
 
     def __init__(
         self,
@@ -20,7 +19,7 @@ class Trainer:
         device: torch.device = None,
         learning_rate: float = 1e-3,
         num_epochs: int = 50,
-        use_mixed_precision: bool = False,
+        use_mixed_precision: bool = False, # mixed precision training can speed up training and reduce memory usage by using 16-bit floating point numbers instead of 32-bit, but it can sometimes cause instability, so it's optional and disabled by default
     ):
         # Auto-detect best device for Mac
         if device is None:
@@ -30,33 +29,19 @@ class Trainer:
         self.device = device
         self.num_epochs = num_epochs
         self.use_mixed_precision = use_mixed_precision
-        self.scaler = torch.cuda.amp.GradScaler() if use_mixed_precision else None
+        self.scaler = torch.cuda.amp.GradScaler() if use_mixed_precision else None 
+        # GradScaler helps prevent underflow when using mixed precision by dynamically scaling the loss value, which allows us to take advantage of the speed and memory benefits of mixed precision without sacrificing stability.
         
-        self.optimizer = Adam(model.parameters(), lr=learning_rate)
+        self.optimizer = Adam(model.parameters(), lr=learning_rate) 
         self.scheduler = ReduceLROnPlateau(
             self.optimizer, mode="min", factor=0.5, patience=3, verbose=True
-        )
+        ) # if model stops imporving for 3 epochs, reduce learning rate by half to help model converge to a better minimum, and verbose=True will print a message every time the learning rate is reduced
         self.criterion = nn.CrossEntropyLoss()
+        # used in binary classification, and heavily penalizes the model when it is confidently wrong
         self.best_val_loss = float("inf")
         
         logger.info(f"Training on device: {device}")
 
-    def __init__(
-        self,
-        model: nn.Module,
-        device: torch.device,
-        learning_rate: float = 1e-3,
-        num_epochs: int = 50,
-    ):
-        self.model = model.to(device)
-        self.device = device
-        self.num_epochs = num_epochs
-        self.optimizer = Adam(model.parameters(), lr=learning_rate)
-        self.scheduler = ReduceLROnPlateau(
-            self.optimizer, mode="min", factor=0.5, patience=3, verbose=True
-        )
-        self.criterion = nn.CrossEntropyLoss()
-        self.best_val_loss = float("inf")
 
     def train_epoch(self, train_loader) -> Dict[str, float]:
         """Train for one epoch."""
@@ -66,17 +51,19 @@ class Trainer:
         total = 0
 
         progress_bar = tqdm(train_loader, desc="Training")
+        ''' We are using tqdm to create a progress bar for the training loop, which gives us a visual indication of how long each epoch is taking
+          and how many batches have been processed. '''
         for images, labels in progress_bar:
             images, labels = images.to(self.device), labels.to(self.device)
 
-            self.optimizer.zero_grad()
+            self.optimizer.zero_grad()              # zero out the gradients from the previous batch
             outputs = self.model(images)
-            loss = self.criterion(outputs, labels)
-            loss.backward()
-            self.optimizer.step()
+            loss = self.criterion(outputs, labels)  # compute the loss between the model's predictions and the true labels for this batch
+            loss.backward()                         # backpropagate the loss to compute gradients for all model parameters
+            self.optimizer.step()                   # update the model parameters using the computed gradients and the Adam optimization algorithm
 
-            total_loss += loss.item()
-            _, predicted = torch.max(outputs.data, 1)
+            total_loss += loss.item()           
+            _, predicted = torch.max(outputs.data, 1)       # get predicted class label
             correct += (predicted == labels).sum().item()
             total += labels.size(0)
 
@@ -93,7 +80,7 @@ class Trainer:
         correct = 0
         total = 0
 
-        with torch.no_grad():
+        with torch.no_grad():   # locks model in val mode, turning off dropout and batch norm updates
             for images, labels in tqdm(val_loader, desc="Validating"):
                 images, labels = images.to(self.device), labels.to(self.device)
                 outputs = self.model(images)
@@ -113,8 +100,9 @@ class Trainer:
         checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         torch.save(
             {
-                "model_state_dict": self.model.state_dict(),
-                "optimizer_state_dict": self.optimizer.state_dict(),
+                "model_state_dict": self.model.state_dict(),    # saves the learned parameters of the model, which can be loaded later to restore the model's state
+                "optimizer_state_dict": self.optimizer.state_dict(), # saves the state of the optimizer, including the values of the learning rate
+                 # and momentum, which allows to resume training with the same optimization settings if we need to stop and restart training
             },
             checkpoint_path,
         )
@@ -139,7 +127,7 @@ class Trainer:
 
             self.scheduler.step(val_metrics["loss"])
 
-            if val_metrics["loss"] < self.best_val_loss:
+            if val_metrics["loss"] < self.best_val_loss: # if the validation loss has improved, save the model checkpoint and update the best validation loss
                 self.best_val_loss = val_metrics["loss"]
                 if checkpoint_dir:
                     self.save_checkpoint(checkpoint_dir / "best_model.pt")
